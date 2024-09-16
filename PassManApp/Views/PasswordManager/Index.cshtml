@@ -1,0 +1,35 @@
+﻿@model IEnumerable<PassManApp.Models.PasswordEntry>
+
+@{
+    ViewData["Title"] = "Password Manager";
+}
+
+<h2>Password Entries</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Add New Password</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Website</th>
+            <th>Username</th>
+            <th>Date Created</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Website</td>
+                <td>@item.Username</td>
+                <td>@item.CreatedAt.ToString("yyyy-MM-dd")</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-info">View</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
