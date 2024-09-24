@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PassManApp.Data;
-using PassManApp.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,8 +14,6 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 builder.Services.AddControllersWithViews();
-builder.Services.AddSingleton<PasswordService>();
-
 
 var app = builder.Build();
 

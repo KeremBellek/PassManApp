@@ -12,7 +12,7 @@ using PassManApp.Data;
 namespace PassManApp.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240916194639_FirstMig")]
+    [Migration("20240923165453_FirstMig")]
     partial class FirstMig
     {
         /// <inheritdoc />
@@ -234,7 +234,14 @@ namespace PassManApp.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

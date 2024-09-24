@@ -1,28 +1,35 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PassManApp.Data;
 using PassManApp.Models;
-using PassManApp.Services;
+using System.Security.Claims;
+
 
 namespace PassManApp.Controllers
 {
     [Authorize]
-    
+
     public class PasswordManagerController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private readonly PasswordService _passwordService;
+        private readonly IDataProtector _protector;
 
-        public PasswordManagerController(ApplicationDbContext context, PasswordService passwordService)
+        public PasswordManagerController(ApplicationDbContext context, IDataProtectionProvider provider)
         {
             _context = context;
-            _passwordService = passwordService;
+            _protector = provider.CreateProtector("PasswordManager_Protector");
         }
 
         public async Task<IActionResult> Index()
         {
-            var passwords = await _context.PasswordEntries.ToListAsync();
+            var userId = User.Identity.Name;  // Get the current logged-in user ID
+            var passwords = _context.PasswordEntries.Where(p => p.UserId == userId).ToList();
+            foreach (var password in passwords)
+            {
+                password.Password = _protector.Unprotect(password.Password);
+            }
             return View(passwords);
         }
 
@@ -33,7 +40,9 @@ namespace PassManApp.Controllers
         {
             if (ModelState.IsValid)
             {
-                model.Password = _passwordService.EncryptPassword(model.Password);
+
+                model.UserId = User.Identity.Name;
+                model.Password = _protector.Protect(model.Password);
                 model.CreatedAt = DateTime.Now;
                 _context.PasswordEntries.Add(model);
                 await _context.SaveChangesAsync();
@@ -42,11 +51,78 @@ namespace PassManApp.Controllers
             return View(model);
         }
 
-        public async Task<IActionResult> Details(int id)
+        [HttpGet]
+        public async Task<IActionResult> ChangePassword(int id)
+        {
+            // Find the password entry by ID
+            var passwordEntry = await _context.PasswordEntries.FindAsync(id);
+
+            if (passwordEntry == null || passwordEntry.UserId != User.Identity.Name)
+            {
+                return NotFound();  // Ensure the entry exists and belongs to the current user
+            }
+
+            // Populate the view model with the password entry details
+            var model = new ChangePasswordViewModel
+            {
+                Id = passwordEntry.Id,
+               
+
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            if (model.NewPassword != model.ConfirmPassword)
+            {
+                ViewBag.ErrorMessage = "New password and confirmation do not match.";
+                return View(model);
+            }
+
+            // Find the password entry
+            var passwordEntry = await _context.PasswordEntries.FindAsync(model.Id);
+            if (passwordEntry == null || passwordEntry.UserId != User.Identity.Name)
+            {
+                return NotFound();  // Ensure the entry exists and belongs to the current user
+            }
+
+            // Encrypt the new password before storing it
+            var encryptedPassword = _protector.Protect(model.NewPassword);
+
+            // Update the password entry with the new password
+            passwordEntry.Password = encryptedPassword;
+            _context.PasswordEntries.Update(passwordEntry);
+            await _context.SaveChangesAsync();
+
+            ViewBag.SuccessMessage = "Password changed successfully!";
+            return RedirectToAction(nameof(Index));
+ 
+        }
+
+        // Delete password entry
+        [HttpPost]
+      
+        public async Task<IActionResult> Delete(int id)
         {
             var passwordEntry = await _context.PasswordEntries.FindAsync(id);
-            passwordEntry.Password = _passwordService.DecryptPassword(passwordEntry.Password);
-            return View(passwordEntry);
+            if (passwordEntry == null || passwordEntry.UserId != User.Identity.Name)
+            {
+                return NotFound();
+            }
+
+            _context.PasswordEntries.Remove(passwordEntry);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Index");
         }
     }
 
